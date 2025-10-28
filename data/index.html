@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#0ea5e9">
+  <title>Control de Velocidad BioShaker</title>
+
+  <!-- Tipografía -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
+
+  <!-- SweetAlert2 (ajusta rutas si usas locales) -->
+  <link rel="stylesheet" href="sweetalert2.css" />
+  <script src="sweetalert2.js"></script>
+
+  <style>
+    :root{
+      --glass:rgba(255,255,255,0.1);
+      --glass-strong:rgba(255,255,255,0.18);
+      --txt:#ffffff;
+      --accent:#0ea5e9;
+      --danger:#ef4444;
+      --ok:#22c55e;
+      --warn:#ffeb3b;
+      --radius:16px;
+      --shadow:0 8px 32px rgba(0,0,0,.25);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:'Inter',system-ui,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--txt);
+      background:
+        radial-gradient(80% 60% at 10% 10%, #1a245a55 0%, transparent 60%),
+        radial-gradient(70% 50% at 90% 20%, #0ea5e933 0%, transparent 60%),
+        linear-gradient(135deg,#aeb8e9,#000) fixed;
+      display:flex;align-items:center;justify-content:center;
+      padding:clamp(12px,2vw,24px);
+    }
+
+    .glass-card{
+      width:100%;
+      max-width:min(700px, 94vw);
+      padding:clamp(18px,2.8vw,28px);
+      background:var(--glass);
+      border:1px solid var(--glass-strong);
+      border-radius:var(--radius);
+      backdrop-filter:saturate(160%) blur(12px);
+      box-shadow:var(--shadow);
+    }
+
+    header{
+      display:flex;align-items:center;gap:12px;justify-content:space-between;
+      margin-bottom:clamp(14px,2vw,18px);
+    }
+    h1{ font-size:clamp(1.15rem, 2.6vw, 1.6rem); font-weight:600; letter-spacing:.2px; }
+
+    .lang-select{ position:relative; width:90px; flex:0 0 auto; }
+    .lang-select select{
+      width:100%;padding:8px 28px 8px 10px;
+      background:rgba(255,255,255,0.14);
+      border:1px solid rgba(255,255,255,0.35);
+      color:var(--txt); border-radius:10px; appearance:none; cursor:pointer;
+      font-size:.92rem; text-align:left;
+    }
+    .lang-select::after{
+      content:'▾'; position:absolute; right:10px; top:50%; transform:translateY(-50%);
+      pointer-events:none; opacity:.9;
+    }
+    .lang-select option{ background:#0c0c0c; }
+
+    .status{
+      display:grid; gap:8px;
+      grid-template-columns: 1fr;
+      margin-bottom:clamp(10px,1.8vw,14px);
+    }
+    .status p{opacity:.95;font-size:clamp(.9rem,1.6vw,1rem)}
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 10px; border-radius:999px; font-size:.85rem;
+      background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2);
+    }
+    .dot{width:8px;height:8px;border-radius:50%}
+    .dot.ok{background:var(--ok)}
+    .dot.no{background:var(--danger)}
+    .warning{color:var(--warn);display:none;font-size:.9rem}
+
+    .controls{
+      display:grid; gap:clamp(12px,2vw,16px);
+      grid-template-columns: 1fr;
+    }
+    @media (min-width:720px){
+      .controls{ grid-template-columns: 1.1fr .9fr; }
+    }
+
+    .group{
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:12px; padding:clamp(12px,2vw,16px);
+    }
+    .group label{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:10px;font-size:.95rem;opacity:.95
+    }
+    .group input[type="range"]{ width:100% }
+    .group input[type="number"]{
+      width:100%; padding:12px 14px; font-size:1rem; color:var(--txt);
+      background:rgba(255,255,255,0.16);
+      border:1px solid rgba(255,255,255,0.25);
+      border-radius:10px; text-align:center;
+    }
+
+    .actions{
+      display:flex;flex-wrap:wrap;gap:10px;margin-top:clamp(14px,2vw,18px)
+    }
+    .btn{
+      flex:1 1 180px;
+      padding:12px 14px;border:none;border-radius:12px;cursor:pointer;
+      color:#fff;font-weight:600;font-size:1rem;
+      box-shadow:0 6px 14px rgba(0,0,0,.35);
+      transition:transform .08s ease, box-shadow .12s ease, opacity .12s ease;
+      text-align:center; text-decoration:none;
+    }
+    .btn:active{ transform:translateY(1px); box-shadow:0 3px 8px rgba(0,0,0,.35) }
+    .btn-primary{ background:linear-gradient(45deg,#38bdf8,#0ea5e9) }
+    .btn-primary:hover{ opacity:.95 }
+    .btn-danger{ background:linear-gradient(45deg,#f87171,#ef4444) }
+    .btn-danger:hover{ opacity:.95 }
+    .btn-outline{ background:transparent; border:1.5px solid rgba(255,255,255,.5) }
+    .btn-outline:hover{ background:rgba(255,255,255,.08) }
+
+    @media (prefers-reduced-motion: reduce){
+      *{animation:none!important; transition:none!important}
+    }
+  </style>
+</head>
+<body>
+
+  <main class="glass-card" role="main" aria-labelledby="title">
+    <header>
+      <h1 id="title">Control de Velocidad</h1>
+      <div class="lang-select">
+        <label class="sr-only" for="langSelect">Idioma</label>
+        <select id="langSelect" aria-label="Seleccionar idioma">
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="status" aria-live="polite">
+      <p><strong id="rpmLabel">RPM actual:</strong> <span id="currentRpm">--</span></p>
+
+      <p>
+        <strong id="wifiLabel">WiFi:</strong>
+        <span id="wifiStatus" class="badge"><span class="dot no" id="wifiDot"></span> --</span>
+      </p>
+
+      <!-- NUEVO: modo e IP -->
+      <p><strong id="modeLabel">Modo:</strong> <span id="modeValue">--</span></p>
+      <p><strong id="ipLabel">IP:</strong> <span id="ipValue">--</span></p>
+
+      <p id="warning" class="warning">ESP32 no accesible</p>
+    </section>
+
+    <section class="controls">
+      <div class="group">
+        <label for="speedSlider"><span id="labelSlider">Velocidad (RPM):</span>
+          <span id="sliderValue" aria-live="polite">100</span>
+        </label>
+        <input type="range" id="speedSlider" min="0" max="510" step="1" value="100" aria-valuemin="0" aria-valuemax="510" aria-valuenow="100" />
+      </div>
+
+      <div class="group">
+        <label for="speedInput" id="labelInput">Ingrese la velocidad:</label>
+        <input type="number" id="speedInput" min="0" max="510" step="1" value="100" inputmode="numeric"/>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="modifyBtn" class="btn btn-primary" type="button" onclick="modificarVelocidad()">Modificar Velocidad</button>
+      <button id="stopBtn" class="btn btn-danger" type="button" onclick="detenerMotor()">Detener Motor</button>
+      <a class="btn btn-outline" id="wifiCfgBtn" href="Endpoints.html" role="button">Configurar Conexion WIFI</a>
+    </div>
+  </main>
+
+  <script>
+    // --- i18n ---
+    const translations = {
+      es: {
+        title:'Control de Velocidad BIOSHAKER',
+        labelSlider:'Velocidad (RPM):',
+        labelInput:'Ingrese la velocidad:',
+        modifyBtn:'Modificar Velocidad',
+        stopBtn:'Detener Motor',
+        wifiCfgBtn:'Configurar Conexion WIFI',
+        rpmLabel:'RPM actual:',
+        wifiLabel:'WiFi:',
+        modeLabel:'Modo:',
+        ipLabel:'IP:',
+        modeSTA:'Cliente (STA)',
+        modeAP:'Punto de acceso (AP)',
+        apBlink:'MODO AP',
+        connected:'Conectado',
+        disconnected:'Desconectado',
+        unreachable:'ESP32 no accesible',
+        confirmModifyTitle:'Confirmar cambio de velocidad',
+        confirmModifyText:v=>`¿Desea confirmar el cambio a ${v} RPM?`,
+        confirmStopTitle:'Detener motor',
+        confirmStopText:'¿Está seguro que desea detener el motor?',
+        successModifyTitle:'¡Listo!',
+        successModifyText:v=>`Velocidad cambiada a ${v} RPM.`,
+        successStopTitle:'¡Motor detenido!',
+        successStopText:'',
+        yes:'Sí', no:'No'
+      },
+      en: {
+        title:'Speed Control BIOSHAKER',
+        labelSlider:'Speed (RPM):',
+        labelInput:'Enter speed:',
+        modifyBtn:'Modify Speed',
+        stopBtn:'Stop Motor',
+        wifiCfgBtn:'Configure WIFI Connection',
+        rpmLabel:'Current RPM:',
+        wifiLabel:'WiFi:',
+        modeLabel:'Mode:',
+        ipLabel:'IP:',
+        modeSTA:'Station (STA)',
+        modeAP:'Access Point (AP)',
+        apBlink:'AP MODE',
+        connected:'Connected',
+        disconnected:'Disconnected',
+        unreachable:'ESP32 unreachable',
+        confirmModifyTitle:'Confirm speed change',
+        confirmModifyText:v=>`Do you want to change to ${v} RPM?`,
+        confirmStopTitle:'Stop motor',
+        confirmStopText:'Are you sure you want to stop the motor?',
+        successModifyTitle:'Done!',
+        successModifyText:v=>`Speed changed to ${v} RPM.`,
+        successStopTitle:'Motor stopped!',
+        successStopText:'',
+        yes:'Yes', no:'No'
+      }
+    };
+
+    const els = {
+      title:       document.getElementById('title'),
+      labelSlider: document.getElementById('labelSlider'),
+      labelInput:  document.getElementById('labelInput'),
+      modifyBtn:   document.getElementById('modifyBtn'),
+      stopBtn:     document.getElementById('stopBtn'),
+      wifiCfgBtn:  document.getElementById('wifiCfgBtn'),
+      rpmLabel:    document.getElementById('rpmLabel'),
+      wifiLabel:   document.getElementById('wifiLabel'),
+      wifiStatus:  document.getElementById('wifiStatus'),
+      wifiDot:     document.getElementById('wifiDot'),
+      warning:     document.getElementById('warning'),
+      slider:      document.getElementById('speedSlider'),
+      input:       document.getElementById('speedInput'),
+      sliderValue: document.getElementById('sliderValue'),
+      langSelect:  document.getElementById('langSelect'),
+      currentRpm:  document.getElementById('currentRpm'),
+      modeLabel:   document.getElementById('modeLabel'),
+      modeValue:   document.getElementById('modeValue'),
+      ipLabel:     document.getElementById('ipLabel'),
+      ipValue:     document.getElementById('ipValue')
+    };
+
+    let lang = localStorage.getItem('lang') || document.documentElement.lang || 'es';
+    let latestStatus = null;
+    let esp32Reachable = true;
+    let apBlinkTimer = null;     // ← para parpadeo en AP
+    let apBlinkFlag  = false;
+
+    function setLang(l){
+      lang = l; localStorage.setItem('lang', l);
+      document.documentElement.lang = l;
+      const t = translations[l];
+
+      els.title.textContent       = t.title;
+      els.labelSlider.textContent = t.labelSlider;
+      els.labelInput.textContent  = t.labelInput;
+      els.modifyBtn.textContent   = t.modifyBtn;
+      els.stopBtn.textContent     = t.stopBtn;
+      els.wifiCfgBtn.textContent  = t.wifiCfgBtn;
+      els.rpmLabel.textContent    = t.rpmLabel;
+      els.wifiLabel.textContent   = t.wifiLabel;
+      els.modeLabel.textContent   = t.modeLabel;
+      els.ipLabel.textContent     = t.ipLabel;
+
+      if(latestStatus){ renderStatus(latestStatus); }
+      if(!esp32Reachable){ els.warning.textContent = t.unreachable; }
+    }
+
+    els.langSelect.value = lang;
+    els.langSelect.addEventListener('change', e=> setLang(e.target.value));
+    setLang(lang);
+
+    // Sincronización slider <-> número
+    function clampToRange(v, min, max){
+      if(isNaN(v)) return min;
+      return Math.min(max, Math.max(min, v));
+    }
+    function syncFromSlider(){
+      els.input.value = els.slider.value;
+      els.sliderValue.textContent = els.slider.value;
+      els.slider.setAttribute('aria-valuenow', els.slider.value);
+    }
+    function syncFromInput(){
+      const v = clampToRange(Number(els.input.value), Number(els.slider.min), Number(els.slider.max));
+      els.slider.value = v; els.input.value = v; els.sliderValue.textContent = v;
+      els.slider.setAttribute('aria-valuenow', v);
+    }
+    els.slider.addEventListener('input', syncFromSlider);
+    els.input.addEventListener('input', syncFromInput);
+
+    // SweetAlert2 helper
+    function confirmar(title, text, cb){
+      Swal.fire({
+        title, text, icon:'question',
+        showCancelButton:true,
+        confirmButtonText: translations[lang].yes,
+        cancelButtonText: translations[lang].no,
+        confirmButtonColor:'#3085d6',
+        cancelButtonColor:'#6b7280'
+      }).then(res=> res.isConfirmed && cb());
+    }
+
+    // Acciones
+    function modificarVelocidad(){
+      const v = els.slider.value, t = translations[lang];
+      confirmar(t.confirmModifyTitle, t.confirmModifyText(v), ()=>{
+        fetch(`/rpm?value=${v}`, {method:'GET'})
+          .then(r=>{ if(!r.ok) throw new Error('HTTP'); return r })
+          .then(()=> Swal.fire(t.successModifyTitle, t.successModifyText(v),'success'))
+          .catch(()=> Swal.fire('Error', 'No se pudo enviar la velocidad','error'));
+      });
+    }
+    function detenerMotor(){
+      const t = translations[lang];
+      confirmar(t.confirmStopTitle, t.confirmStopText, ()=>{
+        fetch('/rpm?value=0', {method:'GET'})
+          .then(r=>{ if(!r.ok) throw new Error('HTTP'); return r })
+          .then(()=> {
+            Swal.fire(t.successStopTitle, t.successStopText,'success');
+            els.slider.value = 0; els.input.value = 0; els.sliderValue.textContent = 0;
+            els.slider.setAttribute('aria-valuenow', 0);
+          })
+          .catch(()=> Swal.fire('Error', 'No se pudo detener el motor','error'));
+      });
+    }
+    window.modificarVelocidad = modificarVelocidad;
+    window.detenerMotor = detenerMotor;
+
+    function updateWifiBadge(connected){
+      const t = translations[lang];
+      els.wifiStatus.textContent = '';
+      els.wifiStatus.appendChild(els.wifiDot);
+      els.wifiStatus.append(' ' + (connected ? t.connected : t.disconnected));
+      els.wifiDot.className = 'dot ' + (connected ? 'ok' : 'no');
+    }
+
+    function startApBlink(ipAP){
+      stopApBlink();
+      apBlinkTimer = setInterval(()=>{
+        apBlinkFlag = !apBlinkFlag;
+        els.ipValue.textContent = apBlinkFlag ? translations[lang].apBlink : (ipAP || '--');
+      }, 900);
+    }
+    function stopApBlink(){
+      if(apBlinkTimer){ clearInterval(apBlinkTimer); apBlinkTimer = null; }
+      apBlinkFlag = false;
+    }
+
+    function renderStatus(data){
+      // currentRpm
+      if(typeof data.currentRpm === 'number'){
+        els.currentRpm.textContent = data.currentRpm.toFixed(1);
+      }else{
+        els.currentRpm.textContent = '--';
+      }
+
+      // WiFi badge
+      updateWifiBadge(!!data.wifi);
+
+      // Mode + IP (según nuestro /status)
+      const mode = (data.mode || '').toUpperCase();
+      if(mode === 'STA'){
+        els.modeValue.textContent = translations[lang].modeSTA;
+        els.ipValue.textContent   = data.ip || '--';
+        stopApBlink();
+      }else if(mode === 'AP'){
+        els.modeValue.textContent = translations[lang].modeAP;
+        // Parpadeo entre "MODO AP" y la IP del AP
+        startApBlink(data.ip_ap);
+      }else{
+        els.modeValue.textContent = '--';
+        els.ipValue.textContent   = '--';
+        stopApBlink();
+      }
+    }
+
+    // Polling de estado
+    function fetchStatus(){
+      fetch('/status',{cache:'no-store'})
+        .then(r=>r.json())
+        .then(data=>{
+          latestStatus = data; esp32Reachable = true;
+          els.warning.style.display = 'none';
+          renderStatus(data);
+        })
+        .catch(()=>{
+          esp32Reachable = false;
+          els.warning.textContent = translations[lang].unreachable;
+          els.warning.style.display = 'block';
+          updateWifiBadge(false);
+          els.modeValue.textContent = '--';
+          els.ipValue.textContent   = '--';
+          stopApBlink();
+        });
+    }
+    fetchStatus();
+    setInterval(fetchStatus, 1000);
+  </script>
+</body>
+</html>

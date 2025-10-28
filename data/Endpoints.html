@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#0ea5e9"/>
+  <title>Conexión WiFi BioShaker</title>
+
+  <!-- Tipografía (opcional) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
+
+  <!-- SweetAlert2 (ajusta rutas si usas locales) -->
+  <link rel="stylesheet" href="sweetalert2.css" />
+  <script src="sweetalert2.js"></script>
+
+  <style>
+    :root{
+      --glass:rgba(255,255,255,0.1);
+      --glass-strong:rgba(255,255,255,0.18);
+      --txt:#fff;
+      --accent:#0ea5e9;
+      --ok:#22c55e;
+      --warn:#ffeb3b;
+      --danger:#ef4444;
+      --radius:16px;
+      --shadow:0 8px 32px rgba(0,0,0,.25);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:'Inter',system-ui,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--txt);
+      background:
+        radial-gradient(80% 60% at 10% 10%, #1a245a55 0%, transparent 60%),
+        radial-gradient(70% 50% at 90% 20%, #0ea5e933 0%, transparent 60%),
+        linear-gradient(135deg,#aeb8e9,#000) fixed;
+      display:flex;align-items:center;justify-content:center;
+      padding:clamp(12px,2vw,24px);
+    }
+    .card{
+      width:100%;max-width:min(640px,95vw);
+      padding:clamp(18px,2.6vw,28px);
+      background:var(--glass);
+      border:1px solid var(--glass-strong);
+      border-radius:var(--radius);
+      backdrop-filter:saturate(160%) blur(12px);
+      box-shadow:var(--shadow);
+    }
+    header{
+      display:flex;gap:12px;align-items:center;justify-content:space-between;
+      margin-bottom:clamp(14px,2vw,18px);
+    }
+    h1{font-size:clamp(1.15rem,2.6vw,1.6rem);font-weight:600;letter-spacing:.2px}
+    .lang{
+      position:relative;width:100px;flex:0 0 auto;
+    }
+    .lang select{
+      width:100%;padding:8px 28px 8px 10px;
+      background:rgba(255,255,255,0.14);
+      border:1px solid rgba(255,255,255,0.35);
+      color:#fff;border-radius:10px;appearance:none;cursor:pointer;
+      font-size:.92rem;
+    }
+    .lang::after{
+      content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      pointer-events:none;opacity:.9
+    }
+    .grid{
+      display:grid;gap:clamp(12px,2vw,16px);
+      grid-template-columns:1fr;
+    }
+    @media(min-width:700px){ .grid{ grid-template-columns:1fr 1fr } }
+
+    .group{
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:12px; padding:clamp(12px,2vw,16px);
+    }
+    .group label{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:10px;font-size:.95rem;opacity:.95
+    }
+    select,input{
+      width:100%;padding:12px 14px;font-size:1rem;color:#fff;
+      background:rgba(255,255,255,0.16);
+      border:1px solid rgba(255,255,255,0.25);
+      border-radius:10px;
+    }
+    .pwd-row{ display:flex;gap:10px;align-items:stretch }
+    .pwd-row input{flex:1}
+    .toggle-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-weight:600;
+      min-width:120px;
+    }
+    .toggle-btn:active{transform:translateY(1px)}
+    .help{ margin-top:8px;font-size:.9rem;opacity:.9 }
+
+    .actions{
+      display:flex;flex-wrap:wrap;gap:10px;margin-top:clamp(14px,2vw,18px);
+      justify-content:center; /* centra contenido */
+    }
+    .btn{
+      flex:1 1 220px;
+      padding:12px 14px;border:none;border-radius:12px;cursor:pointer;
+      color:#fff;font-weight:600;font-size:1rem;
+      box-shadow:0 6px 14px rgba(0,0,0,.35);
+      transition:transform .08s ease, opacity .12s ease;
+      text-align:center; text-decoration:none; /* texto centrado */
+      background:linear-gradient(45deg,#38bdf8,#0ea5e9);
+    }
+    .btn.secondary{background:transparent;border:1.5px solid rgba(255,255,255,.45)}
+    .btn:active{transform:translateY(1px)}
+    .muted{opacity:.85}
+
+    .scan-row{display:flex;gap:8px;align-items:center}
+    .spinner{
+      width:14px;height:14px;border-radius:50%;
+      border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+      animation:spin .8s linear infinite; display:none;
+    }
+    .spinner.show{display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    @media (prefers-reduced-motion: reduce){
+      *{animation:none!important; transition:none!important}
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="title">
+    <header>
+      <h1 id="title">Conexión WiFi BioShaker</h1>
+      <div class="lang">
+        <label for="langSelect" class="sr-only" style="position:absolute;left:-9999px">Idioma</label>
+        <select id="langSelect" aria-label="Seleccionar idioma">
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="grid">
+      <!-- Selección de SSID -->
+      <div class="group">
+        <label for="ssidSelect"><span id="ssidLabel">Seleccione red WiFi</span>
+          <span class="scan-row">
+            <button id="scanBtn" class="toggle-btn" type="button">Escanear</button>
+            <span id="scanSpinner" class="spinner" aria-hidden="true"></span>
+          </span>
+        </label>
+        <select id="ssidSelect" aria-describedby="ssidHelp"></select>
+        <p id="ssidHelp" class="help muted">Si no aparece tu red, pulsa “Escanear”.</p>
+      </div>
+
+      <!-- Contraseña con mostrar/ocultar -->
+      <div class="group">
+        <label for="wifiPassword" id="pwdLabel">Contraseña</label>
+        <div class="pwd-row">
+          <input type="password" id="wifiPassword" placeholder="********" autocomplete="current-password" />
+          <button id="togglePwd" class="toggle-btn" type="button" aria-pressed="false" aria-controls="wifiPassword">
+            Mostrar
+          </button>
+        </div>
+        <p class="help muted" id="pwdHelp">Pulsa “Mostrar” si deseas ver lo que escribiste.</p>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="saveBtn" class="btn" type="button">Guardar y Conectar</button>
+      <!-- Botón centrado y con llamada a /status antes de volver -->
+      <a href="index.html" class="btn secondary" role="button" id="backBtn">Volver al Control</a>
+    </div>
+  </main>
+
+  <script>
+    // --- Textos ES/EN ---
+    const t = {
+      es:{
+        title:'Conexión WiFi BioShaker',
+        ssidLabel:'Seleccione red WiFi',
+        scan:'Escanear',
+        scanning:'Escaneando...',
+        ssidHelp:'Si no aparece tu red, pulsa “Escanear”.',
+        pwdLabel:'Contraseña',
+        pwdPlaceholder:'********',
+        pwdHelp:'Pulsa “Mostrar” si deseas ver lo que escribiste.',
+        show:'Mostrar',
+        hide:'Ocultar',
+        save:'Guardar y Conectar',
+        back:'Volver al Control',
+        statusTitle:'Estado de conexión',
+        statusSTA:(ip,ssid,rssi)=>`Conectado (STA)\nIP: ${ip||'--'}\nSSID: ${ssid||'--'}\nRSSI: ${Number.isFinite(rssi)?rssi+' dBm':'--'}`,
+        statusAP:(ip)=>`Modo AP\nIP AP: ${ip||'--'}`,
+        alerts:{
+          emptyPwdTitle:'Error',
+          emptyPwdMsg:'Ingrese la contraseña.',
+          savedTitle:'Éxito',
+          savedMsg:'Conexión guardada, reiniciando...',
+          errorTitle:'Error',
+          generic:'Ha ocurrido un problema. Intente nuevamente.',
+        }
+      },
+      en:{
+        title:'BioShaker WiFi Connection',
+        ssidLabel:'Select WiFi network',
+        scan:'Scan',
+        scanning:'Scanning...',
+        ssidHelp:'If your network is missing, press “Scan”.',
+        pwdLabel:'Password',
+        pwdPlaceholder:'********',
+        pwdHelp:'Press “Show” if you want to see what you typed.',
+        show:'Show',
+        hide:'Hide',
+        save:'Save & Connect',
+        back:'Back to Control',
+        statusTitle:'Connection status',
+        statusSTA:(ip,ssid,rssi)=>`Connected (STA)\nIP: ${ip||'--'}\nSSID: ${ssid||'--'}\nRSSI: ${Number.isFinite(rssi)?rssi+' dBm':'--'}`,
+        statusAP:(ip)=>`AP Mode\nAP IP: ${ip||'--'}`,
+        alerts:{
+          emptyPwdTitle:'Error',
+          emptyPwdMsg:'Please enter the password.',
+          savedTitle:'Success',
+          savedMsg:'Connection saved, restarting...',
+          errorTitle:'Error',
+          generic:'Something went wrong. Please try again.',
+        }
+      }
+    };
+
+    // --- Elementos ---
+    const els = {
+      title: document.getElementById('title'),
+      langSelect: document.getElementById('langSelect'),
+      ssidLabel: document.getElementById('ssidLabel'),
+      ssidSelect: document.getElementById('ssidSelect'),
+      ssidHelp: document.getElementById('ssidHelp'),
+      scanBtn: document.getElementById('scanBtn'),
+      scanSpinner: document.getElementById('scanSpinner'),
+      pwdLabel: document.getElementById('pwdLabel'),
+      pwd: document.getElementById('wifiPassword'),
+      togglePwd: document.getElementById('togglePwd'),
+      pwdHelp: document.getElementById('pwdHelp'),
+      saveBtn: document.getElementById('saveBtn'),
+      backBtn: document.getElementById('backBtn')
+    };
+
+    // --- Idioma persistente ---
+    let lang = localStorage.getItem('lang') || document.documentElement.lang || 'es';
+    function setLang(l){
+      lang = l; localStorage.setItem('lang', l);
+      document.documentElement.lang = l;
+
+      const i = t[l];
+      els.title.textContent = i.title;
+      els.ssidLabel.textContent = i.ssidLabel;
+      els.ssidHelp.textContent = i.ssidHelp;
+      els.scanBtn.textContent = i.scan;
+      els.pwdLabel.textContent = i.pwdLabel;
+      els.pwd.placeholder = i.pwdPlaceholder;
+      els.pwdHelp.textContent = i.pwdHelp;
+      els.togglePwd.textContent = els.pwd.type === 'password' ? i.show : i.hide;
+      els.saveBtn.textContent = i.save;
+      els.backBtn.textContent = i.back;
+    }
+    els.langSelect.value = lang;
+    els.langSelect.addEventListener('change', e=> setLang(e.target.value));
+    setLang(lang);
+
+    // --- Mostrar/Ocultar contraseña ---
+    els.togglePwd.addEventListener('click', ()=>{
+      const isHidden = els.pwd.type === 'password';
+      els.pwd.type = isHidden ? 'text' : 'password';
+      els.togglePwd.setAttribute('aria-pressed', String(isHidden));
+      els.togglePwd.textContent = isHidden ? t[lang].hide : t[lang].show;
+      els.pwd.focus({preventScroll:true});
+    });
+
+    // --- Escanear redes ---
+    async function cargarRedes(){
+      try{
+        els.scanSpinner.classList.add('show');
+        els.scanBtn.disabled = true;
+        els.scanBtn.textContent = t[lang].scanning;
+
+        const res = await fetch('/scan', {cache:'no-store'});
+        if(!res.ok) throw new Error('HTTP');
+        const redes = await res.json();
+
+        els.ssidSelect.innerHTML = '';
+        (redes || []).forEach(ssid=>{
+          const opt = document.createElement('option');
+          opt.value = ssid; opt.textContent = ssid;
+          els.ssidSelect.appendChild(opt);
+        });
+      }catch(e){
+        Swal.fire(t[lang].alerts.errorTitle, t[lang].alerts.generic, 'error');
+      }finally{
+        els.scanSpinner.classList.remove('show');
+        els.scanBtn.disabled = false;
+        els.scanBtn.textContent = t[lang].scan;
+      }
+    }
+    els.scanBtn.addEventListener('click', cargarRedes);
+    document.addEventListener('DOMContentLoaded', cargarRedes);
+
+    // --- Guardar WiFi ---
+    async function guardarWifi(){
+      const ssid = els.ssidSelect.value || '';
+      const password = (els.pwd.value || '').trim();
+
+      if(!password){
+        Swal.fire(t[lang].alerts.emptyPwdTitle, t[lang].alerts.emptyPwdMsg, 'error');
+        return;
+      }
+
+      try{
+        const res = await fetch('/saveWifi', {
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:`ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`
+        });
+        if(!res.ok) throw new Error('HTTP');
+        const data = await res.json();
+
+        if(data.status === 'ok'){
+          Swal.fire(t[lang].alerts.savedTitle, t[lang].alerts.savedMsg, 'success');
+        }else{
+          Swal.fire(t[lang].alerts.errorTitle, data.msg || t[lang].alerts.generic, 'error');
+        }
+      }catch(e){
+        Swal.fire(t[lang].alerts.errorTitle, t[lang].alerts.generic, 'error');
+      }
+    }
+    els.saveBtn.addEventListener('click', guardarWifi);
+
+    // --- Volver al Control: consulta /status antes de navegar ---
+    els.backBtn.addEventListener('click', async (e)=>{
+      e.preventDefault(); // evita navegar inmediatamente
+      try{
+        const res = await fetch('/status', {cache:'no-store'});
+        if(!res.ok) throw new Error('HTTP');
+        const st = await res.json();
+
+        const mode = (st.mode||'').toUpperCase();
+        if(mode === 'STA'){
+          await Swal.fire({
+            icon:'info',
+            title: t[lang].statusTitle,
+            text: t[lang].statusSTA(st.ip, st.ssid, st.rssi),
+            confirmButtonText:'OK'
+          });
+        }else if(mode === 'AP'){
+          await Swal.fire({
+            icon:'warning',
+            title: t[lang].statusTitle,
+            text: t[lang].statusAP(st.ip_ap),
+            confirmButtonText:'OK'
+          });
+        }
+      }catch(err){
+        // Si falla, solo notificamos y continuamos
+        await Swal.fire({
+          icon:'error',
+          title: t[lang].alerts.errorTitle,
+          text: t[lang].alerts.generic,
+          confirmButtonText:'OK'
+        });
+      }finally{
+        // Navega igual al panel principal
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>
