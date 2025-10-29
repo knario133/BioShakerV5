@@ -16,7 +16,7 @@ const double SPR_MEAS = 3659; // Steps per revolution for measurement
 // WiFi Configuration
 // ============================
 const char* AP_SSID_PREFIX = "BioShaker_";
-const char* AP_PASSWORD = "bioshaker";
+const char* AP_PASSWORD = NULL;
 const IPAddress AP_IP(192, 168, 4, 1);
 const IPAddress AP_GATEWAY(192, 168, 4, 1);
 const IPAddress AP_SUBNET(255, 255, 255, 0);
