@@ -1,0 +1,11 @@
+{
+  "name": "motor_control",
+  "version": "1.0.0",
+  "dependencies": [
+    {
+      "owner": "gin66",
+      "name": "FastAccelStepper",
+      "version": "https://github.com/gin66/FastAccelStepper.git"
+    }
+  ]
+}
