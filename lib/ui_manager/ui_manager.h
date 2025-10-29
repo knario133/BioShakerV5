@@ -23,6 +23,8 @@ enum UiState {
 };
 
 extern UiState uiState; // La máquina de estados es global
+extern volatile bool g_resetRpmEstimator;
+extern volatile bool uiForceRedraw;
 
 /**
  * @brief Inicializa los componentes de la interfaz de usuario (LCD y encoder).
