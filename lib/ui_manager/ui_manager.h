@@ -1,6 +1,7 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
+#include "config.h"
 #include <Arduino.h>
 
 /**
@@ -25,6 +26,7 @@ enum UiState {
 extern UiState uiState; // La máquina de estados es global
 extern volatile bool g_resetRpmEstimator;
 extern volatile bool uiForceRedraw;
+extern volatile bool g_offlineRequested;
 
 /**
  * @brief Inicializa los componentes de la interfaz de usuario (LCD y encoder).

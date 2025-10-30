@@ -1,5 +1,5 @@
-#include "ui_manager.h"
 #include "config.h"
+#include "ui_manager.h"
 #include "motor_control.h"
 #include "wifi_manager.h"
 #include <LiquidCrystal_I2C.h>

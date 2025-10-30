@@ -1,6 +1,7 @@
 #ifndef MOTOR_CONTROL_H
 #define MOTOR_CONTROL_H
 
+#include "config.h"
 #include <Arduino.h>
 #include <FastAccelStepper.h>
 #include "shared_logic.h"
