@@ -55,6 +55,7 @@ void handle_ap_mode();
 void handle_language();
 void handle_wifi_disconnected();
 void handle_wifi();
+void handle_ask_ap_mode();
 void IRAM_ATTR knob_callback(long value);
 
 /**
@@ -128,7 +129,11 @@ void ui_task(void *parameter) {
                 g_offlineRequested = false;
                 WiFi.mode(WIFI_STA);
                 tryConnectSavedWifi(false);
-                uiState = isStaConnected() ? UI_NORMAL : UI_WIFI_DISCONNECTED;
+                if (!isStaConnected()) {
+                  uiState = UI_ASK_AP_MODE;
+                } else {
+                  uiState = UI_NORMAL;
+                }
               }
               break;
             case 4: uiState = UI_LANGUAGE; break;
@@ -137,6 +142,15 @@ void ui_task(void *parameter) {
           break;
         case UI_ADJUST_RPM: case UI_AP_MODE: case UI_LANGUAGE: case UI_WIFI:
           uiState = UI_NORMAL;
+          uiForceRedraw = true;
+          break;
+        case UI_ASK_AP_MODE:
+          if (menuIndex == 0) { // Sí
+            startAPAlways();
+            uiState = UI_WIFI;
+          } else { // No
+            uiState = UI_WIFI_DISCONNECTED;
+          }
           break;
       }
     }
@@ -146,6 +160,7 @@ void ui_task(void *parameter) {
       case UI_SPLASH: handle_splash(); break;
       case UI_NORMAL: handle_normal(); break;
       case UI_MENU: handle_menu(); break;
+      case UI_ASK_AP_MODE: handle_ask_ap_mode(); break;
       case UI_ADJUST_RPM: handle_adjust_rpm(); break;
       case UI_AP_MODE: handle_ap_mode(); break;
       case UI_LANGUAGE: handle_language(); break;
@@ -215,7 +230,7 @@ void handle_normal() {
   }
   char buf[17]; snprintf(buf,sizeof(buf),"A:%3.0f T:%3.0f", cur, tgt);
   static char lastRpm[17]="";
-  if (strcmp(buf,lastRpm)!=0) {
+  if (strcmp(buf,lastRpm)!=0 || uiForceRedraw) {
     lcd.setCursor(0,1); char l2[17]; snprintf(l2,sizeof(l2),"%-16s", buf); lcd.print(l2);
     strcpy(lastRpm, buf);
   }
@@ -248,9 +263,13 @@ void handle_menu() {
 }
 
 void handle_adjust_rpm() {
-  if (uiForceRedraw) { lcd.clear(); lcd.setCursor(0,0); lcd.print((language==0)?"Ajustar RPM":"Adjust RPM"); uiForceRedraw=false; }
-  float newTarget=0; if (xSemaphoreTake(rpmMutex,pdMS_TO_TICKS(5))==pdTRUE){ newTarget=targetRpm; xSemaphoreGive(rpmMutex); }
-  lcd.setCursor(0,1); char buf[17]; snprintf(buf,sizeof(buf),"RPM: %.0f      ", newTarget); lcd.print(buf);
+  if (uiForceRedraw) { lcd.clear(); lcd.setCursor(0,0); lcd.print((language==0)?"Ajustar RPM":"Adjust RPM"); }
+  float cur=0, tgt=0;
+  if (xSemaphoreTake(rpmMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+    cur = currentRpm; tgt = targetRpm; xSemaphoreGive(rpmMutex);
+  }
+  char buf[17]; snprintf(buf,sizeof(buf),"A:%3.0f T:%3.0f", cur, tgt);
+  lcd.setCursor(0,1); char l2[17]; snprintf(l2,sizeof(l2),"%-16s", buf); lcd.print(l2);
 }
 
 void handle_ap_mode() {
@@ -261,8 +280,8 @@ void handle_ap_mode() {
 }
 
 void handle_language() {
-  if (uiForceRedraw) { lcd.clear(); lcd.setCursor(0,0); lcd.print("Idioma/Language  "); uiForceRedraw=false; }
-  lcd.setCursor(0,1); char buf[17]; if (language==0) strncpy(buf,">Esp  En        ",sizeof(buf)); else strncpy(buf," Esp >En        ",sizeof(buf)); buf[16]='\0'; lcd.print(buf);
+  if (uiForceRedraw) { lcd.clear(); lcd.setCursor(0,0); lcd.print("Idioma/Language  "); }
+  lcd.setCursor(0,1); char buf[17]; if (language==0) strncpy(buf,">Español  English",sizeof(buf)); else strncpy(buf," Español >English",sizeof(buf)); buf[16]='\0'; lcd.print(buf);
 }
 
 void handle_wifi_disconnected() {
@@ -306,4 +325,24 @@ void handle_wifi() {
 void IRAM_ATTR knob_callback(long value) {
   KnobValue = -value;
   rotaryEncoder.resetEncoderValue();
+}
+
+void handle_ask_ap_mode() {
+  if (uiForceRedraw) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print((language == 0) ? "Activar Modo AP?" : "Enable AP Mode?");
+    menuIndex = 0; // Reset index for Yes/No
+  }
+
+  // Simple Yes/No menu using menuIndex
+  menuIndex = (menuIndex % 2);
+  if (menuIndex < 0) menuIndex = 1;
+
+  char line[17];
+  snprintf(line, sizeof(line), "%cSi      %cNo", (menuIndex == 0 ? '>' : ' '), (menuIndex == 1 ? '>' : ' '));
+  lcd.setCursor(0, 1);
+  lcd.print(line);
+
+  uiForceRedraw = false;
 }
