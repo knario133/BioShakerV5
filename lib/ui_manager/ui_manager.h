@@ -20,7 +20,8 @@ enum UiState {
   UI_WIFI,               ///< Pantalla para configurar el WiFi.
   UI_LANGUAGE,           ///< Pantalla para cambiar el idioma.
   UI_AP_MODE,            ///< Pantalla que indica que se está en Modo AP.
-  UI_WIFI_DISCONNECTED   ///< Pantalla que indica que se ha perdido la conexión WiFi.
+  UI_WIFI_DISCONNECTED,  ///< Pantalla que indica que se ha perdido la conexión WiFi.
+  UI_ASK_AP_MODE         ///< Pantalla para preguntar si se activa el modo AP.
 };
 
 extern UiState uiState; // La máquina de estados es global

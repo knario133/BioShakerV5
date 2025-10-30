@@ -16,18 +16,26 @@ extern SemaphoreHandle_t rpmMutex;
 // Web server instance
 AsyncWebServer server(80);
 
+// Variables para el escaneo en segundo plano
+static volatile bool g_startScan = false;
+static String g_scanResults = "[]";
+SemaphoreHandle_t g_scanMutex;
+
 // Prototypes
 void setup_server();
 void on_wifi_event(WiFiEvent_t event);
+void wifi_scan_task(void *parameter);
 
 /**
  * @brief Initializes the WiFi manager, starts the AP, and connects to a saved network if available.
  */
 void wifi_setup() {
+    g_scanMutex = xSemaphoreCreateMutex();
     WiFi.onEvent(on_wifi_event);
     startAPAlways();
     tryConnectSavedWifi(false);
     setup_server();
+    xTaskCreatePinnedToCore(wifi_scan_task, "wifiScanTask", 4096, NULL, 1, NULL, 0);
 }
 
 /**
@@ -158,15 +166,22 @@ void setup_server() {
   });
 
   server.on("/scan", HTTP_GET, [](AsyncWebServerRequest *request) {
-    int n = WiFi.scanNetworks();
-    StaticJsonDocument<1024> doc;
-    JsonArray redes = doc.to<JsonArray>();
-    for (int i = 0; i < n; ++i) {
-      redes.add(WiFi.SSID(i));
+    if (g_startScan) {
+      // Si ya hay un escaneo en curso, no hacer nada
+      request->send(200, "application/json", "{\"status\":\"scanning\"}");
+      return;
     }
-    String response;
-    serializeJson(redes, response);
-    request->send(200, "application/json", response);
+
+    // Iniciar un nuevo escaneo
+    g_startScan = true;
+    if (xSemaphoreTake(g_scanMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      // Devolver los resultados anteriores mientras se escanean los nuevos
+      String currentResults = g_scanResults;
+      xSemaphoreGive(g_scanMutex);
+      request->send(200, "application/json", currentResults);
+    } else {
+      request->send(503, "application/json", "{\"status\":\"busy\"}");
+    }
   });
 
   server.on("/saveWifi", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -179,8 +194,9 @@ void setup_server() {
       File configFile = LittleFS.open("/wifiConfig.json", "w");
       serializeJson(doc, configFile);
       configFile.close();
-      request->send(200, "application/json", "{\"status\":\"ok\"}");
-      delay(500);
+      String response = "{\"status\":\"ok\", \"message\":\"Guardado. El dispositivo se reiniciara. Busque la nueva IP en la pantalla del BioShaker.\"}";
+      request->send(200, "application/json", response);
+      delay(2000); // Aumentar el retraso para dar tiempo al navegador a mostrar el mensaje
       ESP.restart();
     } else {
       request->send(400, "application/json", "{\"status\":\"error\",\"msg\":\"missing params\"}");
@@ -209,5 +225,29 @@ void on_wifi_event(WiFiEvent_t event) {
       break;
     default:
       break;
+  }
+}
+
+/**
+ * @brief Tarea de FreeRTOS que gestiona el escaneo de redes WiFi en segundo plano.
+ */
+void wifi_scan_task(void *parameter) {
+  while (true) {
+    if (g_startScan) {
+      g_startScan = false;
+      int n = WiFi.scanNetworks();
+
+      StaticJsonDocument<1024> doc;
+      JsonArray redes = doc.to<JsonArray>();
+      for (int i = 0; i < n; ++i) {
+        redes.add(WiFi.SSID(i));
+      }
+
+      if (xSemaphoreTake(g_scanMutex, portMAX_DELAY) == pdTRUE) {
+        serializeJson(redes, g_scanResults);
+        xSemaphoreGive(g_scanMutex);
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }

@@ -40,4 +40,11 @@ void goOffline();
  */
 bool isStaConnected();
 
+/**
+ * @brief Tarea de FreeRTOS que gestiona el escaneo de redes WiFi en segundo plano.
+ *
+ * @param parameter Puntero a los parámetros de la tarea (no se usa).
+ */
+void wifi_scan_task(void *parameter);
+
 #endif // WIFI_MANAGER_H
