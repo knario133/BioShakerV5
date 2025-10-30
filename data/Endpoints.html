@@ -278,28 +278,69 @@
     });
 
     // --- Escanear redes ---
+    let scanInterval;
+    function stopPolling(){
+      clearInterval(scanInterval);
+      els.scanSpinner.classList.remove('show');
+      els.scanBtn.disabled = false;
+      els.scanBtn.textContent = t[lang].scan;
+    }
+
     async function cargarRedes(){
-      try{
+      if (els.scanBtn.disabled) return;
+
+      try {
         els.scanSpinner.classList.add('show');
         els.scanBtn.disabled = true;
         els.scanBtn.textContent = t[lang].scanning;
 
+        // 1. Iniciar el escaneo
         const res = await fetch('/scan', {cache:'no-store'});
-        if(!res.ok) throw new Error('HTTP');
-        const redes = await res.json();
+        if (!res.ok) throw new Error('HTTP');
 
-        els.ssidSelect.innerHTML = '';
-        (redes || []).forEach(ssid=>{
-          const opt = document.createElement('option');
-          opt.value = ssid; opt.textContent = ssid;
-          els.ssidSelect.appendChild(opt);
-        });
-      }catch(e){
+        const data = await res.json();
+        if (data.status !== 'scan_started' && data.status !== 'scanning') {
+          throw new Error('Scan start failed');
+        }
+
+        // 2. Empezar a consultar los resultados
+        let attempts = 0;
+        const maxAttempts = 10; // 20 segundos de timeout
+        scanInterval = setInterval(async () => {
+          attempts++;
+          if (attempts > maxAttempts) {
+            stopPolling();
+            Swal.fire(t[lang].alerts.errorTitle, 'Scan timed out.', 'error');
+            return;
+          }
+
+          try {
+            const pollRes = await fetch('/scan-results', {cache:'no-store'});
+            if (!pollRes.ok) return; // Intentar de nuevo en el siguiente intervalo
+
+            const resultData = await pollRes.json();
+            if (resultData.status && resultData.status === 'scanning') {
+              // Aún escaneando, esperar al siguiente intervalo
+              return;
+            }
+
+            // 3. Resultados recibidos
+            stopPolling();
+            els.ssidSelect.innerHTML = '';
+            (resultData || []).forEach(ssid => {
+              const opt = document.createElement('option');
+              opt.value = ssid; opt.textContent = ssid;
+              els.ssidSelect.appendChild(opt);
+            });
+
+          } catch (e) {
+            // Ignorar errores de sondeo individuales
+          }
+        }, 2000); // Consultar cada 2 segundos
+
+      } catch(e) {
+        stopPolling();
         Swal.fire(t[lang].alerts.errorTitle, t[lang].alerts.generic, 'error');
-      }finally{
-        els.scanSpinner.classList.remove('show');
-        els.scanBtn.disabled = false;
-        els.scanBtn.textContent = t[lang].scan;
       }
     }
     els.scanBtn.addEventListener('click', cargarRedes);

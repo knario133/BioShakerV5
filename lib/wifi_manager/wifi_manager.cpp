@@ -167,20 +167,24 @@ void setup_server() {
 
   server.on("/scan", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (g_startScan) {
-      // Si ya hay un escaneo en curso, no hacer nada
       request->send(200, "application/json", "{\"status\":\"scanning\"}");
-      return;
-    }
-
-    // Iniciar un nuevo escaneo
-    g_startScan = true;
-    if (xSemaphoreTake(g_scanMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-      // Devolver los resultados anteriores mientras se escanean los nuevos
-      String currentResults = g_scanResults;
-      xSemaphoreGive(g_scanMutex);
-      request->send(200, "application/json", currentResults);
     } else {
-      request->send(503, "application/json", "{\"status\":\"busy\"}");
+      g_startScan = true;
+      request->send(200, "application/json", "{\"status\":\"scan_started\"}");
+    }
+  });
+
+  server.on("/scan-results", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (g_startScan) {
+      request->send(200, "application/json", "{\"status\":\"scanning\"}");
+    } else {
+      if (xSemaphoreTake(g_scanMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        String currentResults = g_scanResults;
+        xSemaphoreGive(g_scanMutex);
+        request->send(200, "application/json", currentResults);
+      } else {
+        request->send(503, "application/json", "{\"status\":\"busy\"}");
+      }
     }
   });
 
