@@ -263,13 +263,9 @@ void handle_menu() {
 }
 
 void handle_adjust_rpm() {
-  if (uiForceRedraw) { lcd.clear(); lcd.setCursor(0,0); lcd.print((language==0)?"Ajustar RPM":"Adjust RPM"); }
-  float cur=0, tgt=0;
-  if (xSemaphoreTake(rpmMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-    cur = currentRpm; tgt = targetRpm; xSemaphoreGive(rpmMutex);
-  }
-  char buf[17]; snprintf(buf,sizeof(buf),"A:%3.0f T:%3.0f", cur, tgt);
-  lcd.setCursor(0,1); char l2[17]; snprintf(l2,sizeof(l2),"%-16s", buf); lcd.print(l2);
+  if (uiForceRedraw) { lcd.clear(); lcd.setCursor(0,0); lcd.print((language==0)?"Ajustar RPM":"Adjust RPM"); uiForceRedraw=false; }
+  float newTarget=0; if (xSemaphoreTake(rpmMutex,pdMS_TO_TICKS(5))==pdTRUE){ newTarget=targetRpm; xSemaphoreGive(rpmMutex); }
+  lcd.setCursor(0,1); char buf[17]; snprintf(buf,sizeof(buf),"RPM: %.0f      ", newTarget); lcd.print(buf);
 }
 
 void handle_ap_mode() {
